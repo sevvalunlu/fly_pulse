@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harita | FlyPulse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body class="bg-slate-950 text-slate-200 overflow-hidden">
+
+    <div id="map" class="absolute inset-0 bg-slate-100"></div>
+
+    <a href="{% url 'home' %}" class="absolute top-6 left-6 z-[60] bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-xl border border-slate-700/50 hover:border-cyan-500/50 transition-colors shadow-lg">
+        <h1 class="text-xl font-bold text-white">Fly<span class="text-cyan-400 map-neon-glow">Pulse</span></h1>
+    </a>
+
+    <button id="openPanelBtn" onclick="toggleSidebar()" class="absolute top-24 left-6 z-40 bg-slate-900/90 backdrop-blur-md border border-cyan-500/50 text-cyan-400 px-4 py-2 rounded-xl shadow-lg hover:bg-slate-800 transition-colors flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+        Detayları Aç
+    </button>
+
+    <div class="absolute top-6 right-6 z-[60] bg-slate-900/90 backdrop-blur-md px-4 py-3 rounded-xl border border-slate-700/50 shadow-lg flex flex-col gap-2 w-48">
+        <label for="flightFilter" class="text-[10px] text-slate-400 uppercase tracking-widest">Akıllı Filtre</label>
+        <select id="flightFilter" class="bg-slate-800 text-white text-sm rounded-lg block w-full p-2 border border-slate-600 focus:border-cyan-500 outline-none cursor-pointer" onchange="applyFilter(this.value)">
+            <option value="all">Tüm Uçuşlar</option>
+            <option value="climbing">Sadece Tırmananlar</option>
+            <option value="descending">Sadece Alçalanlar</option>
+            <option value="low_alt">Düşük İrtifa (< 10.000 ft)</option>
+            <option value="high_speed">Yüksek Hız (> 800 km/h)</option>
+        </select>
+    </div>
+
+    <aside id="sidebar" class="absolute left-6 top-24 w-80 h-fit bg-slate-900/95 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-6 transform -translate-x-[150%] opacity-0 pointer-events-none transition-all duration-500 z-50 shadow-2xl shadow-cyan-900/20 flex flex-col">
+        
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-semibold text-cyan-400">Uçuş Detayları</h2>
+            <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+        </div>
+        
+        <div class="space-y-4"> <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+                <p class="text-xs text-slate-400 uppercase tracking-widest mb-1">Çağrı Kodu</p>
+                <p class="text-2xl font-bold text-white uppercase" id="flightCode">-</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700 col-span-2">
+                    <p class="text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Kalkış Ülkesi</p>
+                    <p class="text-sm font-semibold text-white truncate" id="originCountry">-</p>
+                </div>
+                
+                <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
+                    <p class="text-[10px] text-slate-400 mb-1">İRTİFA</p>
+                    <p class="text-sm font-semibold text-white" id="altitude">-</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
+                    <p class="text-[10px] text-slate-400 mb-1">HIZ</p>
+                    <p class="text-sm font-semibold text-white" id="velocity">-</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-xl p-3 border border-slate-700 col-span-2">
+                    <p class="text-[10px] text-slate-400 mb-1 uppercase tracking-wider">Durum (Dikey Hız)</p>
+                    <p class="text-sm font-semibold text-white" id="verticalRate">-</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="absolute bottom-6 left-6 z-[60] w-64 bg-slate-900/90 backdrop-blur-md px-4 py-3 rounded-xl border border-slate-700/50 shadow-lg flex flex-col gap-2">
+        <label for="mapBrightness" class="text-[10px] text-slate-400 uppercase tracking-widest flex justify-between">
+            <span>Harita Parlaklığı</span>
+            <span id="brightnessValue">100%</span>
+        </label>
+        <input type="range" id="mapBrightness" min="0.2" max="1.0" step="0.1" value="0.9" 
+               class="w-full accent-cyan-500 cursor-pointer"
+               oninput="
+                    document.querySelector('.leaflet-tile-pane').style.filter = `brightness(${this.value})`;
+                    document.getElementById('brightnessValue').innerText = Math.round(this.value * 100) + '%';
+               ">
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{% static 'map.js' %}?v=2.0"></script>
+</body>
+</html>

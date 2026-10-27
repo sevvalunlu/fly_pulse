@@ -1,0 +1,16 @@
+# Gizli bilgiler
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Veritabani
+db.sqlite3
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
